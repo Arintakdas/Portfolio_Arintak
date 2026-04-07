@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&display=swap');
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+
+  :root{
+    --cyan:#00f5ff;
+    --blue:#0088ff;
+    --gold:#ffd700;
+    --red:#ff2244;
+    --bg:#010812;
+    --panel:rgba(0,20,50,0.7);
+    --border:rgba(0,245,255,0.25);
+    --glow:0 0 20px rgba(0,245,255,0.4),0 0 40px rgba(0,245,255,0.15);
+  }
+
+  html,body{background:#010812;color:#e0f7ff;font-family:'Rajdhani',sans-serif;overflow-x:hidden;scroll-behavior:smooth;}
+
+  /* ── CUSTOM SCROLLBAR ── */
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:#010812;}
+  ::-webkit-scrollbar-thumb{background:var(--cyan);border-radius:2px;}
+
+  /* ── CANVAS BACKGROUND ── */
+  #bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+
+  /* ── CURSOR ── */
+  #cursor{position:fixed;width:20px;height:20px;border:1px solid var(--cyan);border-radius:50%;pointer-events:none;z-index:9999;transition:transform 0.1s;mix-blend-mode:screen;}
+  #cursor-trail{position:fixed;width:6px;height:6px;background:var(--cyan);border-radius:50%;pointer-events:none;z-index:9998;opacity:0.7;}
+
+  /* ── SCANLINE OVERLAY ── */
+  .scanlines{position:fixed;top:0;left:0;width:100%;height:100%;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);pointer-events:none;z-index:1;animation:scanMove 8s linear infinite;}
+  @keyframes scanMove{0%{background-position:0 0;}100%{background-position:0 100px;}}
+
+  /* ── MAIN LAYOUT ── */
+  .site-wrapper{position:relative;z-index:2;min-height:100vh;}
+
+  /* ── NAV ── */
+  nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:16px 40px;background:rgba(1,8,18,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);}
+  .nav-logo{font-family:'Orbitron',monospace;font-size:14px;font-weight:900;color:var(--cyan);letter-spacing:3px;text-shadow:var(--glow);}
+  .nav-links{display:flex;gap:32px;}
+  .nav-links a{font-family:'Share Tech Mono',monospace;font-size:11px;color:rgba(0,245,255,0.6);text-decoration:none;letter-spacing:2px;text-transform:uppercase;transition:color 0.2s,text-shadow 0.2s;}
+  .nav-links a:hover{color:var(--cyan);text-shadow:var(--glow);}
+  .nav-status{font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(0,245,255,0.5);display:flex;align-items:center;gap:8px;}
+  .status-dot{width:6px;height:6px;background:#00ff88;border-radius:50%;animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 4px #00ff88;}50%{opacity:0.4;box-shadow:none;}}
+
+  /* ── HERO ── */
+  #hero{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;padding:100px 40px 60px;overflow:hidden;}
+  .hero-content{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;max-width:1200px;width:100%;}
+  .hero-left{position:relative;}
+  .hero-tag{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan);letter-spacing:3px;margin-bottom:16px;opacity:0;animation:fadeUp 0.8s 0.2s forwards;}
+  .hero-name{font-family:'Orbitron',monospace;font-size:clamp(36px,5vw,64px);font-weight:900;line-height:1;color:#fff;text-transform:uppercase;opacity:0;animation:fadeUp 0.8s 0.4s forwards;}
+  .hero-name span{color:var(--cyan);display:block;text-shadow:var(--glow);}
+  .hero-title{font-family:'Share Tech Mono',monospace;font-size:13px;color:rgba(0,245,255,0.7);margin-top:20px;opacity:0;animation:fadeUp 0.8s 0.6s forwards;}
+  .hero-desc{font-size:16px;color:rgba(224,247,255,0.65);line-height:1.7;margin-top:20px;max-width:480px;opacity:0;animation:fadeUp 0.8s 0.8s forwards;}
+  .hero-btns{display:flex;gap:16px;margin-top:32px;opacity:0;animation:fadeUp 0.8s 1s forwards;}
+  .btn-primary{padding:12px 28px;background:transparent;border:1px solid var(--cyan);color:var(--cyan);font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;position:relative;overflow:hidden;transition:all 0.3s;text-decoration:none;display:inline-block;}
+  .btn-primary::before{content:'';position:absolute;inset:0;background:var(--cyan);transform:translateX(-100%);transition:transform 0.3s;z-index:-1;}
+  .btn-primary:hover{color:#010812;text-shadow:none;}
+  .btn-primary:hover::before{transform:translateX(0);}
+  .btn-ghost{padding:12px 28px;background:transparent;border:1px solid rgba(0,245,255,0.3);color:rgba(0,245,255,0.6);font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;text-decoration:none;display:inline-block;transition:all 0.3s;}
+  .btn-ghost:hover{border-color:var(--cyan);color:var(--cyan);}
+
+  /* ── HUD FRAME ── */
+  .hud-frame{position:absolute;inset:0;pointer-events:none;}
+  .hud-corner{position:absolute;width:30px;height:30px;border-color:var(--cyan);border-style:solid;opacity:0.5;}
+  .hud-corner.tl{top:0;left:0;border-width:2px 0 0 2px;}
+  .hud-corner.tr{top:0;right:0;border-width:2px 2px 0 0;}
+  .hud-corner.bl{bottom:0;left:0;border-width:0 0 2px 2px;}
+  .hud-corner.br{bottom:0;right:0;border-width:0 2px 2px 0;}
+
+  /* ── ARC REACTOR ── */
+  .reactor-container{position:relative;display:flex;align-items:center;justify-content:center;height:420px;opacity:0;animation:fadeIn 1.2s 0.5s forwards;}
+  #arc-canvas{width:100%;height:100%;}
+
+  /* ── HUD DATA PANELS ── */
+  .hud-panel{background:var(--panel);border:1px solid var(--border);padding:12px 16px;font-family:'Share Tech Mono',monospace;font-size:10px;backdrop-filter:blur(10px);}
+  .hud-panel .label{color:rgba(0,245,255,0.5);letter-spacing:1px;display:block;margin-bottom:4px;}
+  .hud-panel .value{color:var(--cyan);font-size:14px;font-weight:bold;}
+  .data-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:24px;opacity:0;animation:fadeUp 0.8s 1.2s forwards;}
+
+  /* ── TICKER ── */
+  .ticker{position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(0,20,40,0.9);border-top:1px solid var(--border);padding:6px 0;overflow:hidden;}
+  .ticker-inner{display:flex;animation:tickerScroll 40s linear infinite;white-space:nowrap;}
+  .ticker-item{font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(0,245,255,0.6);padding:0 40px;letter-spacing:1px;}
+  .ticker-item span{color:var(--cyan);}
+  @keyframes tickerScroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+
+  /* ── SECTIONS ── */
+  section{padding:100px 40px;max-width:1200px;margin:0 auto;}
+  .section-header{display:flex;align-items:center;gap:20px;margin-bottom:60px;}
+  .section-num{font-family:'Orbitron',monospace;font-size:11px;color:var(--cyan);opacity:0.5;letter-spacing:3px;}
+  .section-title{font-family:'Orbitron',monospace;font-size:clamp(24px,3vw,36px);font-weight:700;text-transform:uppercase;color:#fff;letter-spacing:2px;}
+  .section-line{flex:1;height:1px;background:linear-gradient(90deg,var(--cyan),transparent);opacity:0.3;}
+
+  /* ── SKILLS BENTO ── */
+  .bento-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .bento-card{background:var(--panel);border:1px solid var(--border);padding:24px;position:relative;overflow:hidden;transition:border-color 0.3s,box-shadow 0.3s;cursor:default;}
+  .bento-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);transform:translateX(-100%);transition:transform 0.5s;}
+  .bento-card:hover{border-color:var(--cyan);box-shadow:var(--glow);}
+  .bento-card:hover::before{transform:translateX(100%);}
+  .bento-icon{font-size:28px;margin-bottom:12px;}
+  .bento-label{font-family:'Orbitron',monospace;font-size:11px;color:var(--cyan);letter-spacing:2px;margin-bottom:8px;text-transform:uppercase;}
+  .bento-items{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .tag{font-family:'Share Tech Mono',monospace;font-size:10px;padding:3px 8px;background:rgba(0,245,255,0.08);border:1px solid rgba(0,245,255,0.2);color:rgba(0,245,255,0.8);letter-spacing:1px;}
+  .bento-wide{grid-column:span 2;}
+
+  /* ── PROJECTS ── */
+  .projects-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;}
+  .project-card{background:var(--panel);border:1px solid var(--border);overflow:hidden;transition:all 0.3s;cursor:pointer;position:relative;}
+  .project-card:hover{border-color:var(--cyan);box-shadow:var(--glow);transform:translateY(-4px);}
+  .project-banner{height:6px;background:linear-gradient(90deg,var(--cyan),var(--blue));}
+  .project-banner.red{background:linear-gradient(90deg,var(--red),#ff8800);}
+  .project-banner.gold{background:linear-gradient(90deg,var(--gold),#ff9900);}
+  .project-banner.green{background:linear-gradient(90deg,#00ff88,#00cc44);}
+  .project-body{padding:24px;}
+  .project-id{font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(0,245,255,0.4);letter-spacing:2px;margin-bottom:8px;}
+  .project-name{font-family:'Orbitron',monospace;font-size:18px;font-weight:700;color:#fff;margin-bottom:10px;text-transform:uppercase;}
+  .project-desc{font-size:14px;color:rgba(224,247,255,0.6);line-height:1.6;margin-bottom:16px;}
+  .project-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+  .project-stat{display:flex;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:10px;padding-top:16px;border-top:1px solid var(--border);}
+  .project-stat .s-label{color:rgba(0,245,255,0.4);}
+  .project-stat .s-val{color:var(--cyan);}
+  .project-wide{grid-column:span 2;}
+
+  /* ── MATH SECTION ── */
+  .math-section{background:var(--panel);border:1px solid var(--border);padding:40px;position:relative;overflow:hidden;}
+  .math-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:24px;}
+  .math-card{text-align:center;padding:24px;border:1px solid var(--border);position:relative;}
+  .math-formula{font-family:'Share Tech Mono',monospace;font-size:clamp(16px,2vw,22px);color:var(--cyan);margin:12px 0;text-shadow:var(--glow);line-height:1.4;}
+  .math-name{font-size:12px;color:rgba(0,245,255,0.5);letter-spacing:1px;text-transform:uppercase;}
+  .math-desc{font-size:13px;color:rgba(224,247,255,0.5);margin-top:8px;line-height:1.5;}
+
+  /* ── CONTACT ── */
+  .contact-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .contact-card{background:var(--panel);border:1px solid var(--border);padding:24px;text-align:center;transition:all 0.3s;text-decoration:none;display:block;position:relative;overflow:hidden;}
+  .contact-card:hover{border-color:var(--cyan);box-shadow:var(--glow);}
+  .contact-card::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at center,rgba(0,245,255,0.05),transparent);opacity:0;transition:opacity 0.3s;}
+  .contact-card:hover::after{opacity:1;}
+  .contact-icon{font-size:32px;margin-bottom:12px;}
+  .contact-label{font-family:'Orbitron',monospace;font-size:11px;color:var(--cyan);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
+  .contact-value{font-family:'Share Tech Mono',monospace;font-size:11px;color:rgba(0,245,255,0.6);}
+  .contact-proto{font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(0,245,255,0.3);margin-top:4px;}
+
+  /* ── ROADMAP ── */
+  .roadmap{position:relative;padding-left:32px;}
+  .roadmap::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:linear-gradient(180deg,var(--cyan),transparent);}
+  .roadmap-item{position:relative;margin-bottom:32px;padding:20px 24px;background:var(--panel);border:1px solid var(--border);}
+  .roadmap-item::before{content:'';position:absolute;left:-37px;top:24px;width:10px;height:10px;background:var(--bg);border:2px solid var(--cyan);border-radius:50%;}
+  .roadmap-year{font-family:'Orbitron',monospace;font-size:11px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;}
+  .roadmap-goal{font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:600;color:#fff;margin-bottom:4px;}
+  .roadmap-detail{font-size:13px;color:rgba(224,247,255,0.5);}
+  .roadmap-active::before{background:var(--cyan);box-shadow:0 0 12px var(--cyan);}
+
+  /* ── FOOTER ── */
+  footer{border-top:1px solid var(--border);padding:32px 40px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(0,245,255,0.3);letter-spacing:2px;}
+  footer span{color:var(--cyan);}
+
+  /* ── GLITCH TEXT ── */
+  .glitch{position:relative;}
+  .glitch::before,.glitch::after{content:attr(data-text);position:absolute;top:0;left:0;width:100%;height:100%;}
+  .glitch::before{color:#ff0088;animation:glitch1 4s infinite;clip-path:polygon(0 0,100% 0,100% 35%,0 35%);}
+  .glitch::after{color:#00f5ff;animation:glitch2 4s infinite;clip-path:polygon(0 65%,100% 65%,100% 100%,0 100%);}
+  @keyframes glitch1{0%,90%,100%{transform:translateX(0);}92%{transform:translateX(-3px);}94%{transform:translateX(3px);}96%{transform:translateX(-2px);}}
+  @keyframes glitch2{0%,88%,100%{transform:translateX(0);}90%{transform:translateX(3px);}92%{transform:translateX(-3px);}94%{transform:translateX(2px);}}
+
+  /* ── TYPEWRITER ── */
+  .typewriter{overflow:hidden;border-right:2px solid var(--cyan);white-space:nowrap;animation:typing 3s steps(30) forwards,blink 0.7s step-end infinite;}
+  @keyframes typing{from{width:0}to{width:100%}}
+  @keyframes blink{50%{border-color:transparent}}
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:768px){
+    .hero-content{grid-template-columns:1fr;gap:30px;}
+    .reactor-container{height:300px;order:-1;}
+    .bento-grid{grid-template-columns:1fr;}
+    .bento-wide{grid-column:span 1;}
+    .projects-grid{grid-template-columns:1fr;}
+    .project-wide{grid-column:span 1;}
+    .math-grid{grid-template-columns:1fr;}
+    .contact-grid{grid-template-columns:1fr;}
+    nav{padding:12px 20px;}
+    .nav-links{display:none;}
+    section{padding:60px 20px;}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="scanlines"></div>
+<div id="cursor"></div>
+<div id="cursor-trail"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">A.D // MARK-01</div>
+  <div class="nav-links">
+    <a href="#hero">SYSTEM</a>
+    <a href="#skills">ARSENAL</a>
+    <a href="#projects">PROJECTS</a>
+    <a href="#math">LOGIC CORE</a>
+    <a href="#contact">UPLINK</a>
+  </div>
+  <div class="nav-status"><div class="status-dot"></div> ALL SYSTEMS NOMINAL</div>
+</nav>
+
+<div class="site-wrapper">
+
+<!-- HERO -->
+<div id="hero">
+  <div class="hud-frame">
+    <div class="hud-corner tl"></div>
+    <div class="hud-corner tr"></div>
+    <div class="hud-corner bl"></div>
+    <div class="hud-corner br"></div>
+  </div>
+
+  <div class="hero-content">
+    <div class="hero-left">
+      <div class="hero-tag">// INITIALIZING PROFILE SEQUENCE...</div>
+      <h1 class="hero-name glitch" data-text="ARINTAK DAS">
+        ARINTAK<span>DAS</span>
+      </h1>
+      <div class="hero-title">AI ARCHITECT · CSE @ GCETTS · MATH TEACHER</div>
+      <p class="hero-desc">Engineering intelligence at the intersection of mathematical logic and scalable AI systems. Building the future from Kolkata, one model at a time.</p>
+      <div class="hero-btns">
+        <a href="#projects" class="btn-primary">VIEW PROJECTS</a>
+        <a href="#contact" class="btn-ghost">OPEN UPLINK</a>
+      </div>
+
+      <div class="data-grid">
+        <div class="hud-panel">
+          <span class="label">DESIGNATION</span>
+          <span class="value">CSE-2ND YR</span>
+        </div>
+        <div class="hud-panel">
+          <span class="label">SPECIALIZATION</span>
+          <span class="value">AI/ML/DL</span>
+        </div>
+        <div class="hud-panel">
+          <span class="label">BASE LOCATION</span>
+          <span class="value">KOLKATA, IN</span>
+        </div>
+        <div class="hud-panel">
+          <span class="label">OBJECTIVE</span>
+          <span class="value">IIT M.TECH</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="reactor-container">
+      <canvas id="arc-canvas" width="400" height="400"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- SKILLS -->
+<section id="skills">
+  <div class="section-header">
+    <div class="section-num">// 01</div>
+    <div class="section-title">TECH ARSENAL</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="bento-grid">
+    <div class="bento-card bento-wide">
+      <div class="bento-label">⚡ CORE LANGUAGES</div>
+      <p style="font-size:13px;color:rgba(224,247,255,0.5);margin-bottom:12px;">The fundamental stack — compiled for performance, scripted for intelligence.</p>
+      <div class="bento-items">
+        <span class="tag">PYTHON ██████████</span>
+        <span class="tag">C / C++</span>
+        <span class="tag">JAVA</span>
+        <span class="tag">JAVASCRIPT</span>
+        <span class="tag">DART</span>
+        <span class="tag">SQL</span>
+      </div>
+    </div>
+
+    <div class="bento-card">
+      <div class="bento-label">🧠 INTELLIGENCE LAYER</div>
+      <div class="bento-items">
+        <span class="tag">TENSORFLOW</span>
+        <span class="tag">KERAS</span>
+        <span class="tag">GANs</span>
+        <span class="tag">DEEP LEARNING</span>
+        <span class="tag">SCRAPY</span>
+        <span class="tag">CNN</span>
+      </div>
+    </div>
+
+    <div class="bento-card">
+      <div class="bento-label">🌐 WEB / MOBILE STACK</div>
+      <div class="bento-items">
+        <span class="tag">NEXT.JS 15</span>
+        <span class="tag">NODE.JS</span>
+        <span class="tag">REACT</span>
+        <span class="tag">FLUTTER</span>
+        <span class="tag">GSAP</span>
+        <span class="tag">TAILWIND</span>
+      </div>
+    </div>
+
+    <div class="bento-card">
+      <div class="bento-label">🔐 SECURITY TOOLKIT</div>
+      <div class="bento-items">
+        <span class="tag">NMAP</span>
+        <span class="tag">SHODAN</span>
+        <span class="tag">NETWORK SCAN</span>
+        <span class="tag">OSINT</span>
+      </div>
+    </div>
+
+    <div class="bento-card">
+      <div class="bento-label">⚙️ HARDWARE / ENV</div>
+      <div class="bento-items">
+        <span class="tag">VICTUS RTX 2050</span>
+        <span class="tag">LOCAL TRAINING</span>
+        <span class="tag">VERCEL EDGE</span>
+        <span class="tag">GIT</span>
+      </div>
+    </div>
+
+    <div class="bento-card bento-wide" style="background:linear-gradient(135deg,rgba(0,20,50,0.9),rgba(0,50,100,0.3));border-color:rgba(0,245,255,0.4);">
+      <div class="bento-label">🎭 BEYOND THE TERMINAL</div>
+      <p style="font-size:13px;color:rgba(224,247,255,0.5);margin-bottom:12px;">A full-stack human. Not just a developer.</p>
+      <div class="bento-items">
+        <span class="tag" style="border-color:rgba(255,215,0,0.4);color:rgba(255,215,0,0.8);">MATH TEACHER</span>
+        <span class="tag" style="border-color:rgba(255,215,0,0.4);color:rgba(255,215,0,0.8);">ENTROPY CLUB</span>
+        <span class="tag" style="border-color:rgba(255,215,0,0.4);color:rgba(255,215,0,0.8);">BOHURUPI MUSIC</span>
+        <span class="tag" style="border-color:rgba(255,215,0,0.4);color:rgba(255,215,0,0.8);">THEATRICAL CLUB</span>
+        <span class="tag" style="border-color:rgba(255,215,0,0.4);color:rgba(255,215,0,0.8);">GCETTS SRISTI FEST</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTS -->
+<section id="projects">
+  <div class="section-header">
+    <div class="section-num">// 02</div>
+    <div class="section-title">ACTIVE DEPLOYMENTS</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="projects-grid">
+    <div class="project-card">
+      <div class="project-banner"></div>
+      <div class="project-body">
+        <div class="project-id">PROJECT-001 // AI/ML · BIOTECH</div>
+        <div class="project-name">Ladybird ID System</div>
+        <p class="project-desc">Deep learning model for real-time species identification of ladybird beetles using GANs for data augmentation. Paired with a Flutter mobile interface for field researchers.</p>
+        <div class="project-tags">
+          <span class="tag">TENSORFLOW</span><span class="tag">GANs</span><span class="tag">FLUTTER</span><span class="tag">CNN</span><span class="tag">PYTHON</span>
+        </div>
+        <div class="project-stat">
+          <div><div class="s-label">MODEL ACCURACY</div><div class="s-val">96.4%</div></div>
+          <div><div class="s-label">EPOCHS</div><div class="s-val">100 / 100</div></div>
+          <div><div class="s-label">AUGMENTATION</div><div class="s-val">GAN ACTIVE</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="project-card">
+      <div class="project-banner red"></div>
+      <div class="project-body">
+        <div class="project-id">PROJECT-002 // CYBERSECURITY</div>
+        <div class="project-name">CCTV Vuln Scanner</div>
+        <p class="project-desc">Automated vulnerability scanner for CCTV infrastructure using Nmap and Shodan API. Maps exposure across Kolkata-Howrah networks with a live threat dashboard.</p>
+        <div class="project-tags">
+          <span class="tag">NMAP</span><span class="tag">SHODAN</span><span class="tag">PYTHON</span><span class="tag">NETWORK SEC</span>
+        </div>
+        <div class="project-stat">
+          <div><div class="s-label">THREAT NODES</div><div class="s-val">MAPPED</div></div>
+          <div><div class="s-label">HACKATHON</div><div class="s-val">FINALIST</div></div>
+          <div><div class="s-label">STATUS</div><div class="s-val">SCANNING</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="project-card project-wide">
+      <div class="project-banner gold"></div>
+      <div class="project-body">
+        <div class="project-id">PROJECT-003 // STARTUP · GREENTECH</div>
+        <div class="project-name">Green-Chain // Resource Recovery Engine</div>
+        <p class="project-desc">Full-stack waste management platform for India. Geofencing + image recognition identifies recyclables, connects waste producers with recyclers, and incentivises circular economy behaviour across West Bengal. A vision for scalable environmental AI.</p>
+        <div class="project-tags">
+          <span class="tag">NEXT.JS</span><span class="tag">GEOFENCING</span><span class="tag">IMAGE RECOGNITION</span><span class="tag">NODE.JS</span><span class="tag">STARTUP</span><span class="tag">FLUTTER</span>
+        </div>
+        <div class="project-stat">
+          <div><div class="s-label">STAGE</div><div class="s-val">IN DEV</div></div>
+          <div><div class="s-label">MARKET</div><div class="s-val">INDIA · WB</div></div>
+          <div><div class="s-label">CATEGORY</div><div class="s-val">GREENTECH</div></div>
+          <div><div class="s-label">POTENTIAL</div><div class="s-val">SCALE: NATIONAL</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="project-card">
+      <div class="project-banner" style="background: linear-gradient(90deg, #00d2ff, #3a7bd5);"></div>
+      <div class="project-body">
+        <div class="project-id">PROJECT-006 // SYSTEMS · DATA PIPELINE</div>
+        <div class="project-name">ATMO-SPHERE Terminal</div>
+        <p class="project-desc">A high-performance weather analytics system. The engine is written in native C, utilizing custom QuickSort algorithms and an Adjacency Matrix to process massive datasets and simulate geographic storm impacts. A Node.js bridge securely serves this data to a custom Glassmorphic SPA, visualizing trends dynamically.</p>
+        <div class="project-tags">
+          <span class="tag">C (CUSTOM DSA)</span><span class="tag">NODE.JS</span><span class="tag">CHART.JS</span><span class="tag">VIS.JS NETWORK</span>
+        </div>
+        <div class="project-stat">
+          <div><div class="s-label">BACKEND</div><div class="s-val">NATIVE C</div></div>
+          <div><div class="s-label">ALGORITHMS</div><div class="s-val">GRAPHS & SORTING</div></div>
+          <div><div class="s-label">FRONTEND</div><div class="s-val">SPA DASHBOARD</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="project-card">
+      <div class="project-banner" style="background: linear-gradient(90deg, #9d00ff, #00f5ff);"></div>
+      <div class="project-body">
+        <div class="project-id">PROJECT-005 // AI AGENT · AUTOMATION</div>
+        <div class="project-name">J.A.R.V.I.S. Local System</div>
+        <p class="project-desc">A custom voice-activated local AI assistant capable of processing speech and executing system-level commands, bringing the Iron Man interface to life on local hardware.</p>
+        <div class="project-tags">
+          <span class="tag">PYTHON</span><span class="tag">VOICE RECOGNITION</span><span class="tag">AUTOMATION</span><span class="tag">NLP</span>
+        </div>
+        <div class="project-stat">
+          <div><div class="s-label">ENVIRONMENT</div><div class="s-val">LOCAL OS</div></div>
+          <div><div class="s-label">INTERFACE</div><div class="s-val">VOICE CONTROLS</div></div>
+          <div><div class="s-label">STATUS</div><div class="s-val">ACTIVE</div></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="project-card">
+      <div class="project-banner green"></div>
+      <div class="project-body">
+        <div class="project-id">PROJECT-004 // UI/UX · EVENT</div>
+        <div class="project-name">Sristi Reloaded 2k25</div>
+        <p class="project-desc">Matrix-themed tech-fest website for GCETTS annual fest. Full creative direction, animations and interactive UI — a showcase of design-engineering synthesis.</p>
+        <div class="project-tags">
+          <span class="tag">NEXT.JS</span><span class="tag">GSAP</span><span class="tag">UI/UX</span><span class="tag">MATRIX THEME</span>
+        </div>
+        <div class="project-stat">
+          <div><div class="s-label">ROLE</div><div class="s-val">CREATOR</div></div>
+          <div><div class="s-label">THEME</div><div class="s-val">MATRIX</div></div>
+          <div><div class="s-label">CLUB</div><div class="s-val">ENTROPY</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MATH CORE -->
+<section id="math">
+  <div class="section-header">
+    <div class="section-num">// 03</div>
+    <div class="section-title">MATHEMATICAL CORE</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="math-section">
+    <p style="font-family:'Share Tech Mono',monospace;font-size:11px;color:rgba(0,245,255,0.5);letter-spacing:2px;margin-bottom:8px;">// THE EQUATIONS THAT POWER THE INTELLIGENCE</p>
+    <p style="font-size:14px;color:rgba(224,247,255,0.5);max-width:600px;">Not just a user of libraries. A student of the mathematics that makes them work — calculus, linear algebra, probability. Teaching math makes the code cleaner.</p>
+
+    <div class="math-grid">
+      <div class="math-card">
+        <div class="math-name">Euler's Identity</div>
+        <div class="math-formula">e^(iπ) + 1 = 0</div>
+        <div class="math-desc">The most beautiful equation in mathematics. The foundation of signal processing and Fourier transforms used in audio and image AI.</div>
+      </div>
+      <div class="math-card">
+        <div class="math-name">Gradient Descent</div>
+        <div class="math-formula">θ := θ − α·∇J(θ)</div>
+        <div class="math-desc">The engine of every neural network. Each parameter update drives the model toward minimum loss — the core of TensorFlow training loops.</div>
+      </div>
+      <div class="math-card">
+        <div class="math-name">Backpropagation</div>
+        <div class="math-formula">∂L/∂w = ∂L/∂a · ∂a/∂z · ∂z/∂w</div>
+        <div class="math-desc">The chain rule applied recursively. How neural networks learn by propagating errors backward through every layer.</div>
+      </div>
+      <div class="math-card">
+        <div class="math-name">GAN Objective</div>
+        <div class="math-formula">min_G max_D V(D,G)</div>
+        <div class="math-desc">The adversarial game between Generator and Discriminator. The mathematical heart of the Ladybird data augmentation pipeline.</div>
+      </div>
+      <div class="math-card">
+        <div class="math-name">Cross Entropy Loss</div>
+        <div class="math-formula">L = −Σ y·log(ŷ)</div>
+        <div class="math-desc">Measures divergence between predicted and true distributions. The loss function optimized during species classification training.</div>
+      </div>
+      <div class="math-card">
+        <div class="math-name">Softmax</div>
+        <div class="math-formula">σ(z)_i = e^(z_i) / Σe^(z_j)</div>
+        <div class="math-desc">Converts raw logits into a probability distribution across species classes. The final layer of every multi-class classifier.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section id="roadmap">
+  <div class="section-header">
+    <div class="section-num">// 04</div>
+    <div class="section-title">MISSION TIMELINE</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="roadmap">
+    <div class="roadmap-item roadmap-active">
+      <div class="roadmap-year">2024 – 2026 · ACTIVE</div>
+      <div class="roadmap-goal">B.Tech CSE @ GCETTS + AI Portfolio</div>
+      <div class="roadmap-detail">Building production-grade AI projects, leading Entropy Club, teaching mathematics. Laying the technical foundation.</div>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-year">2026 – 2027</div>
+      <div class="roadmap-goal">Launch Green-Chain + Research Papers</div>
+      <div class="roadmap-detail">Scale the waste recovery startup nationally. Submit research on the Ladybird GAN model to journals. Build an academic publication record.</div>
+    </div>
+    
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="section-header">
+    <div class="section-num">// 05</div>
+    <div class="section-title">ENCRYPTED UPLINK</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="contact-grid">
+    <a href="mailto:arintakdas@zohomail" class="contact-card">
+      <div class="contact-icon">✉</div>
+      <div class="contact-label">SECURE MAIL</div>
+      <div class="contact-value">arintakdas@zohomail</div>
+      <div class="contact-proto">PROTOCOL: SMTP-256-TLS</div>
+    </a>
+    <a href="https://github.com/Arintakdas" target="_blank" class="contact-card">
+      <div class="contact-icon">⬡</div>
+      <div class="contact-label">CODE REPOSITORY</div>
+      <div class="contact-value">github.com/Arintakdas</div>
+      <div class="contact-proto">HANDLE: CODER-EASY</div>
+    </a>
+    <a href="https://www.instagram.com/arintak_paradox/" target="_blank" class="contact-card">
+      <div class="contact-icon">◈</div>
+      <div class="contact-label">VISUAL UPLINK</div>
+      <div class="contact-value">@arintak_paradox</div>
+      <div class="contact-proto">PLATFORM: INSTAGRAM</div>
+    </a>
+  </div>
+
+  <div style="margin-top:32px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:11px;color:rgba(0,245,255,0.3);letter-spacing:2px;padding:20px;border:1px solid var(--border);">
+    OPEN TO: INTERNSHIPS · RESEARCH COLLABORATIONS · HACKATHONS · FREELANCE PROJECTS<br>
+    <span style="color:var(--cyan);margin-top:8px;display:block;">RESPONSE TIME: &lt; 24 HOURS</span>
+  </div>
+</section>
+
+<footer>
+  <span>ARINTAK DAS</span> · GCETTS CSE · KOLKATA, WEST BENGAL · INDIA<br>
+  <span style="font-size:9px;margin-top:6px;display:block;">BUILT WITH NEXT.JS + TENSORFLOW + MATHEMATICS · MARK-01 v2026.4</span>
+</footer>
+
+</div><!-- site-wrapper -->
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner" id="ticker-text">
+    <span class="ticker-item">ARINTAK DAS · AI ARCHITECT</span>
+    <span class="ticker-item">PROJECT: LADYBIRD ID · <span>GAN_STATUS: ACTIVE</span></span>
+    <span class="ticker-item">LOSS: <span>0.024</span> · EPOCH: <span>100/100</span></span>
+    <span class="ticker-item">CCTV SCANNER · THREAT MAP: <span>KOLKATA-HOWRAH</span></span>
+    <span class="ticker-item">GREEN-CHAIN STARTUP · STATUS: <span>IN DEVELOPMENT</span></span>
+    <span class="ticker-item">GCETTS · ENTROPY CLUB · BOHURUPI · THEATRICAL</span>
+    <span class="ticker-item">TARGET: IIT M.TECH → IISC PHD · <span>SEQUENCE ACTIVE</span></span>
+    <span class="ticker-item">STACK: PYTHON · TENSORFLOW · NEXTJS · FLUTTER · NMAP</span>
+    <span class="ticker-item">ARINTAK DAS · AI ARCHITECT</span>
+    <span class="ticker-item">PROJECT: LADYBIRD ID · <span>GAN_STATUS: ACTIVE</span></span>
+    <span class="ticker-item">LOSS: <span>0.024</span> · EPOCH: <span>100/100</span></span>
+    <span class="ticker-item">CCTV SCANNER · THREAT MAP: <span>KOLKATA-HOWRAH</span></span>
+    <span class="ticker-item">GREEN-CHAIN STARTUP · STATUS: <span>IN DEVELOPMENT</span></span>
+    <span class="ticker-item">GCETTS · ENTROPY CLUB · BOHURUPI · THEATRICAL</span>
+    <span class="ticker-item">TARGET: IIT M.TECH → IISC PHD · <span>SEQUENCE ACTIVE</span></span>
+    <span class="ticker-item">STACK: PYTHON · TENSORFLOW · NEXTJS · FLUTTER · NMAP</span>
+  </div>
+</div>
+
+<script>
+// ── CUSTOM CURSOR ──
+const cursor = document.getElementById('cursor');
+const trail = document.getElementById('cursor-trail');
+let mx=0,my=0,tx=0,ty=0;
+document.addEventListener('mousemove',e=>{
+  mx=e.clientX; my=e.clientY;
+  cursor.style.left=(mx-10)+'px';
+  cursor.style.top=(my-10)+'px';
+});
+function animTrail(){
+  tx+=(mx-tx)*0.15; ty+=(my-ty)*0.15;
+  trail.style.left=(tx-3)+'px';
+  trail.style.top=(ty-3)+'px';
+  requestAnimationFrame(animTrail);
+}
+animTrail();
+
+// ── BACKGROUND PARTICLE GRID ──
+const bgCanvas=document.getElementById('bg-canvas');
+const bgCtx=bgCanvas.getContext('2d');
+let W,H,particles=[];
+function resizeBg(){
+  W=bgCanvas.width=window.innerWidth;
+  H=bgCanvas.height=window.innerHeight;
+}
+resizeBg();
+window.addEventListener('resize',resizeBg);
+
+class Particle{
+  constructor(){this.reset();}
+  reset(){
+    this.x=Math.random()*W;
+    this.y=Math.random()*H;
+    this.vx=(Math.random()-0.5)*0.3;
+    this.vy=(Math.random()-0.5)*0.3;
+    this.size=Math.random()*1.5+0.5;
+    this.opacity=Math.random()*0.4+0.1;
+  }
+  update(){
+    this.x+=this.vx; this.y+=this.vy;
+    if(this.x<0||this.x>W||this.y<0||this.y>H) this.reset();
+  }
+  draw(){
+    bgCtx.beginPath();
+    bgCtx.arc(this.x,this.y,this.size,0,Math.PI*2);
+    bgCtx.fillStyle=`rgba(0,245,255,${this.opacity})`;
+    bgCtx.fill();
+  }
+}
+
+for(let i=0;i<120;i++) particles.push(new Particle());
+
+// Hex grid
+function drawHexGrid(){
+  const size=30,cols=Math.ceil(W/size/1.732)+2,rows=Math.ceil(H/size)+2;
+  bgCtx.strokeStyle='rgba(0,100,180,0.06)';
+  bgCtx.lineWidth=0.5;
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const x=c*size*1.732+(r%2)*size*0.866,y=r*size*1.5;
+      bgCtx.beginPath();
+      for(let i=0;i<6;i++){
+        const angle=Math.PI/180*(60*i-30);
+        const hx=x+size*Math.cos(angle),hy=y+size*Math.sin(angle);
+        i===0?bgCtx.moveTo(hx,hy):bgCtx.lineTo(hx,hy);
+      }
+      bgCtx.closePath();
+      bgCtx.stroke();
+    }
+  }
+}
+
+// Scan lines
+let scanY=0;
+function drawScanBeam(){
+  const grad=bgCtx.createLinearGradient(0,scanY-60,0,scanY+60);
+  grad.addColorStop(0,'rgba(0,245,255,0)');
+  grad.addColorStop(0.5,'rgba(0,245,255,0.03)');
+  grad.addColorStop(1,'rgba(0,245,255,0)');
+  bgCtx.fillStyle=grad;
+  bgCtx.fillRect(0,scanY-60,W,120);
+  scanY+=1.5;
+  if(scanY>H+100) scanY=-100;
+}
+
+function bgLoop(){
+  bgCtx.clearRect(0,0,W,H);
+  drawHexGrid();
+  drawScanBeam();
+  particles.forEach(p=>{p.update();p.draw();});
+  // Connection lines
+  bgCtx.strokeStyle='rgba(0,245,255,0.08)';
+  bgCtx.lineWidth=0.5;
+  for(let i=0;i<particles.length;i++){
+    for(let j=i+1;j<particles.length;j++){
+      const dx=particles[i].x-particles[j].x;
+      const dy=particles[i].y-particles[j].y;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      if(d<100){
+        bgCtx.beginPath();
+        bgCtx.moveTo(particles[i].x,particles[i].y);
+        bgCtx.lineTo(particles[j].x,particles[j].y);
+        bgCtx.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(bgLoop);
+}
+bgLoop();
+
+// ── ARC REACTOR (Canvas 2D) ──
+const arcCanvas=document.getElementById('arc-canvas');
+const ctx=arcCanvas.getContext('2d');
+arcCanvas.width=400; arcCanvas.height=400;
+const CX=200,CY=200;
+let t=0;
+const NUM_RINGS=[
+  {r:160,segments:12,speed:0.003,dir:1,color:'rgba(0,245,255,0.15)',w:1},
+  {r:140,segments:8,speed:0.005,dir:-1,color:'rgba(0,245,255,0.25)',w:1.5},
+  {r:115,segments:16,speed:0.008,dir:1,color:'rgba(0,136,255,0.3)',w:1},
+  {r:95,segments:6,speed:0.012,dir:-1,color:'rgba(0,245,255,0.4)',w:2},
+  {r:72,segments:10,speed:0.02,dir:1,color:'rgba(0,200,255,0.5)',w:1.5},
+  {r:52,segments:4,speed:0.03,dir:-1,color:'rgba(0,245,255,0.7)',w:2},
+];
+const ARCS=[
+  {r:158,start:0,end:Math.PI*0.4,speed:0.008,color:'rgba(0,245,255,0.6)',w:2},
+  {r:142,start:Math.PI,end:Math.PI*1.6,speed:-0.01,color:'rgba(0,136,255,0.7)',w:2.5},
+  {r:96,start:0.5,end:0.5+Math.PI*0.8,speed:0.015,color:'rgba(0,245,255,0.8)',w:2},
+  {r:76,start:Math.PI*0.2,end:Math.PI*0.9,speed:-0.02,color:'rgba(0,200,255,0.6)',w:1.5},
+];
+let mouseX=0,mouseY=0;
+arcCanvas.addEventListener('mousemove',e=>{
+  const r=arcCanvas.getBoundingClientRect();
+  mouseX=(e.clientX-r.left-CX)/CX;
+  mouseY=(e.clientY-r.top-CY)/CY;
+});
+
+function drawArc(){
+  ctx.clearRect(0,0,400,400);
+
+  // Outer glow
+  const outerGrad=ctx.createRadialGradient(CX+mouseX*10,CY+mouseY*10,0,CX,CY,180);
+  outerGrad.addColorStop(0,'rgba(0,245,255,0.02)');
+  outerGrad.addColorStop(0.7,'rgba(0,100,200,0.04)');
+  outerGrad.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=outerGrad;
+  ctx.fillRect(0,0,400,400);
+
+  // Rings with dashes
+  NUM_RINGS.forEach(ring=>{
+    ctx.save();
+    ctx.translate(CX+mouseX*6,CY+mouseY*6);
+    ctx.rotate(t*ring.speed*ring.dir);
+    const gap=Math.PI*2/ring.segments;
+    ctx.strokeStyle=ring.color;
+    ctx.lineWidth=ring.w;
+    for(let i=0;i<ring.segments;i++){
+      ctx.beginPath();
+      ctx.arc(0,0,ring.r,i*gap+0.1,i*gap+gap-0.1);
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
+
+  // Spinning arcs
+  ARCS.forEach((arc,i)=>{
+    ctx.save();
+    ctx.translate(CX+mouseX*4,CY+mouseY*4);
+    ctx.rotate(t*arc.speed);
+    ctx.beginPath();
+    ctx.arc(0,0,arc.r,arc.start,arc.end);
+    ctx.strokeStyle=arc.color;
+    ctx.lineWidth=arc.w;
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  // Triangular core connectors
+  ctx.save();
+  ctx.translate(CX+mouseX*8,CY+mouseY*8);
+  ctx.rotate(t*0.01);
+  const tri=40;
+  ctx.beginPath();
+  ctx.moveTo(0,-tri);
+  ctx.lineTo(tri*0.866,tri*0.5);
+  ctx.lineTo(-tri*0.866,tri*0.5);
+  ctx.closePath();
+  ctx.strokeStyle='rgba(0,245,255,0.6)';
+  ctx.lineWidth=1.5;
+  ctx.stroke();
+  // Inner triangle
+  ctx.rotate(Math.PI);
+  ctx.beginPath();
+  ctx.moveTo(0,-tri*0.7);
+  ctx.lineTo(tri*0.606,tri*0.35);
+  ctx.lineTo(-tri*0.606,tri*0.35);
+  ctx.closePath();
+  ctx.strokeStyle='rgba(0,136,255,0.5)';
+  ctx.lineWidth=1;
+  ctx.stroke();
+  ctx.restore();
+
+  // Core glow
+  const coreGrad=ctx.createRadialGradient(CX+mouseX*10,CY+mouseY*10,0,CX,CY,35);
+  coreGrad.addColorStop(0,'rgba(200,240,255,1)');
+  coreGrad.addColorStop(0.2,'rgba(0,245,255,0.9)');
+  coreGrad.addColorStop(0.6,'rgba(0,136,255,0.3)');
+  coreGrad.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.beginPath();
+  ctx.arc(CX+mouseX*10,CY+mouseY*10,35,0,Math.PI*2);
+  ctx.fillStyle=coreGrad;
+  ctx.fill();
+
+  // Data readouts around reactor
+  ctx.fillStyle='rgba(0,245,255,0.5)';
+  ctx.font='9px "Share Tech Mono",monospace';
+  const labels=[
+    {x:CX+175,y:CY-10,text:'POWER: 100%'},
+    {x:CX+175,y:CY+5,text:'ARC: STABLE'},
+    {x:CX-225,y:CY-10,text:'TEMP: 2.1K'},
+    {x:CX-225,y:CY+5,text:'OUTPUT: MAX'},
+    {x:CX-30,y:CY-185,text:'AI_CORE: ON'},
+    {x:CX-30,y:CY+195,text:'MARK-01: OK'},
+  ];
+  labels.forEach(l=>{
+    ctx.globalAlpha=0.7;
+    ctx.fillText(l.text,l.x,l.y);
+  });
+  ctx.globalAlpha=1;
+
+  // Orbit dots
+  for(let i=0;i<8;i++){
+    const angle=t*0.015+i*(Math.PI*2/8);
+    const dx=Math.cos(angle)*128+CX;
+    const dy=Math.sin(angle)*128+CY;
+    ctx.beginPath();
+    ctx.arc(dx,dy,2.5,0,Math.PI*2);
+    ctx.fillStyle=`rgba(0,245,255,${0.4+0.4*Math.sin(t*0.05+i)})`;
+    ctx.fill();
+  }
+  for(let i=0;i<6;i++){
+    const angle=-t*0.025+i*(Math.PI*2/6);
+    const dx=Math.cos(angle)*170+CX;
+    const dy=Math.sin(angle)*170+CY;
+    ctx.beginPath();
+    ctx.arc(dx,dy,1.5,0,Math.PI*2);
+    ctx.fillStyle=`rgba(0,136,255,${0.3+0.3*Math.cos(t*0.08+i)})`;
+    ctx.fill();
+  }
+
+  t++;
+  requestAnimationFrame(drawArc);
+}
+drawArc();
+
+// ── SCROLL REVEAL ──
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.style.opacity='1';
+      e.target.style.transform='translateY(0)';
+    }
+  });
+},{threshold:0.1});
+
+document.querySelectorAll('.bento-card,.project-card,.math-card,.roadmap-item,.contact-card').forEach(el=>{
+  el.style.opacity='0';
+  el.style.transform='translateY(30px)';
+  el.style.transition='opacity 0.6s ease, transform 0.6s ease';
+  observer.observe(el);
+});
+
+// ── NAV ACTIVE STATE ──
+const sections=document.querySelectorAll('section,[id]');
+window.addEventListener('scroll',()=>{
+  const scrollY=window.scrollY;
+  document.querySelectorAll('.nav-links a').forEach(a=>{
+    const target=document.querySelector(a.getAttribute('href'));
+    if(target){
+      const top=target.offsetTop-100,bottom=top+target.offsetHeight;
+      if(scrollY>=top&&scrollY<bottom){
+        a.style.color='var(--cyan)';
+        a.style.textShadow='0 0 20px rgba(0,245,255,0.4)';
+      } else {
+        a.style.color='rgba(0,245,255,0.6)';
+        a.style.textShadow='none';
+      }
+    }
+  });
+});
+
+// ── HOVER FX ON CARDS ──
+document.querySelectorAll('.bento-card,.project-card,.math-card').forEach(card=>{
+  card.addEventListener('mousemove',e=>{
+    const rect=card.getBoundingClientRect();
+    const x=((e.clientX-rect.left)/rect.width-0.5)*12;
+    const y=((e.clientY-rect.top)/rect.height-0.5)*12;
+    card.style.transform=`translateY(-4px) rotateX(${-y}deg) rotateY(${x}deg)`;
+    card.style.transformOrigin='center center';
+  });
+  card.addEventListener('mouseleave',()=>{
+    card.style.transform='translateY(0) rotateX(0) rotateY(0)';
+  });
+});
+</script>
+</body>
+</html>
